@@ -321,7 +321,7 @@ void loop() {
                                         temperature); 
   }
 
-  sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f\n", roll, pitch, heading, compHeading, temperature, altitude);
+  sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, altitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z);
   gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
 
   if (LOGSERIAL) {
