@@ -256,7 +256,7 @@ void loop() {
            Serial.println(stringptr);
            
       if (!GPS.fix) {
-        sprintf(gpsLogBuffer, "NO GPS");
+        sprintf(gpsLogBuffer, "0/0/0,0:0:0.0,0,0,0,0,0,0,0,0,0,0,");
       }
       else {
         sprintf(gpsLogBuffer, "%d/%d/%d,%d:%d:%d.%d,%d,%d,%f,%f,%f,%f,%f,%d,%f,%f,", 
