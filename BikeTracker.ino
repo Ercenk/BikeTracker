@@ -122,7 +122,8 @@ void setup_gps(){
   // For logging data, we don't suggest using anything but either RMC only or RMC+GGA
   // to keep the log files at a reasonable size
   // Set the update rate
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);   // 1 or 5 Hz update rate
+//  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);   // 1 or 5 Hz update rate
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);   // 1 or 5 Hz update rate
 
   // Turn off updates on antenna status, if the firmware permits it
   GPS.sendCommand(PGCMD_NOANTENNA);
