@@ -12,39 +12,16 @@
 // GPS library
 #include <Adafruit_GPS.h>
 
-#ifdef __AVR__
-  #include <SoftwareSerial.h>
-  #include <avr/sleep.h>
-#endif
-
 #include <SPI.h>
 #include <SD.h>
 
 #define LOGSERIAL true
-// GPS SETUP SECTION
-// ____________________________________________________________________
-
-// Ladyada's logger modified by Bill Greiman to use the SdFat library
-//
-// This code shows how to listen to the GPS module in an interrupt
-// which allows the program to have more 'freedom' - just parse
-// when a new NMEA sentence is available! Then access data when
-// desired.
-//
-// Tested and works great with the Adafruit Ultimate GPS Shield
-// using MTK33x9 chipset
-//    ------> http://www.adafruit.com/products/
-// Pick one up today at the Adafruit electronics shop 
-// and help support open source hardware & software! -ada
 
 #define mySerial Serial1
 
 Adafruit_GPS GPS(&mySerial);
 
-// Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
-// Set to 'true' if you want to debug and listen to the raw GPS sentences
 #define GPSECHO  true
-/* set to true to only log to SD when GPS has a fix, for debugging, keep it false */
 #define LOG_FIXONLY false  
 
 // Set the pins used
@@ -114,7 +91,8 @@ void setup_gps(){
   
   // connect to the GPS at the desired rate
   GPS.begin(9600);
-
+  mySerial.begin(9600);
+ 
   // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   // uncomment this line to turn on only the "minimum recommended" data
@@ -122,11 +100,14 @@ void setup_gps(){
   // For logging data, we don't suggest using anything but either RMC only or RMC+GGA
   // to keep the log files at a reasonable size
   // Set the update rate
-//  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);   // 1 or 5 Hz update rate
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);   // 1 or 5 Hz update rate
+   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);
+  //GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);   // 1 or 5 Hz update rate
+//  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);   // 1 or 5 Hz update rate
 
   // Turn off updates on antenna status, if the firmware permits it
   GPS.sendCommand(PGCMD_NOANTENNA);
+   delay(1000);
+  mySerial.println(PMTK_Q_RELEASE);
 }
 
 
@@ -239,17 +220,15 @@ void loop() {
   char logBuffer[256];
   char gpsLogBuffer[128];
   size_t gpsBufferSize = 0;
-
+ 
   // GPS section
   char c = GPS.read();
-
+ if (GPSECHO)
+           if (c) Serial.println(c);
+           
   // if a sentence is received, we can check the checksum, parse it...
   if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences! 
-    // so be very wary if using OUTPUT_ALLDATA and trying to print out data
-    //myPrintln(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
-        
+
     char *stringptr = GPS.lastNMEA();    
     if (GPS.parse(stringptr))   
     {
@@ -264,8 +243,6 @@ void loop() {
           GPS.month, GPS.day, GPS.year, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds, GPS.fix, GPS.fixquality,
           GPS.latitude, GPS.longitude, GPS.speed, GPS.angle, GPS.altitude, GPS.satellites, GPS.HDOP, GPS.magvariation);
       }
-
-      gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
     }
   
   if (gpsBufferSize == 0)
@@ -276,7 +253,13 @@ void loop() {
   if (LOG_FIXONLY && !GPS.fix) {
         Serial.print("No Fix");
     }
-    
+  }
+  else
+  {
+    sprintf(gpsLogBuffer, "0/0/0,0:0:0.0,0,0,0,0,0,0,0,0,0,0,");
+  }
+  gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
+   
     // DOF section
   sensors_event_t accel_event;
   sensors_event_t mag_event;
@@ -324,11 +307,11 @@ void loop() {
 
   sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, altitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z);
   gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
-
+/*
   if (LOGSERIAL) {
     Serial.println(logBuffer);
   }
-  
+  */
   char newLine[2] = "\n";  
   uint8_t stringsize = strlen(logBuffer);
   if (stringsize != logfile.write((uint8_t *)logBuffer, stringsize))    //write the string to the SD file
@@ -337,7 +320,7 @@ void loop() {
   
    delay(2000);
    logfile.flush();
-  }
+  
 }
 
 
