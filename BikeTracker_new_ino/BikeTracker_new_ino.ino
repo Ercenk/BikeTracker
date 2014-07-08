@@ -272,7 +272,7 @@ uint16_t gpsMilliseconds;
 float latitude;
 float longitude;
 float geoidheight;
-float altitude;
+float gpsaltitude;
 float gpsSpeed;
 float angle;
 float magvariation;
@@ -291,7 +291,7 @@ sensors_event_t bmp_event;
 sensors_event_t gyro_event;
 sensors_vec_t   orientation;
 
-float roll, pitch, heading, compHeading, temperature, altitude;
+float roll, pitch, heading, compHeading, temperature, dofAltitude;
 
 void loop()
 {
@@ -320,7 +320,7 @@ void loop()
   latitude = getDecimalDegree(latitude);
   longitude = GPS.longitude;
   geoidheight = GPS.geoidheight;
-  altitude = GPS.altitude;
+  gpsaltitude = GPS.altitude;
   gpsSpeed = GPS.speed;
   gpsSpeed *= MILESINNAUTICALMILES;
   angle = GPS.angle;
@@ -365,13 +365,13 @@ void loop()
   {
     bmp.getTemperature(&temperature);
     //altitude = bmp.pressureToAltitude(seaLevelPressure,
-    altitude = bmp.pressureToAltitude(1021,
+    dofAltitude = bmp.pressureToAltitude(1021,
                                       bmp_event.pressure,
                                       temperature);
   }
 
   gyro.getEvent(&gyro_event);
-  sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, altitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z, gyro_event.gyro.x, gyro_event.gyro.y, gyro_event.gyro.z);
+  sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, dofAltitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z, gyro_event.gyro.x, gyro_event.gyro.y, gyro_event.gyro.z);
   
   if (timer > millis())  timer = millis();
 
@@ -406,7 +406,7 @@ void loop()
     if (shouldLog) {
       sprintf(gpsLogBuffer, "%f, %d/%d/%d,%d:%d:%d.%d,%d,%d,%f,%f,%f,%f,%f,%d,%f,%f,",
               distance, gpsMonth, gpsDay, gpsYear, gpsHour, gpsMinute, gpsSeconds, gpsMilliseconds, fix, fixquality,
-              latitude, longitude, gpsSpeed, angle, altitude, satellites, HDOP, magvariation);
+              latitude, longitude, gpsSpeed, angle, gpsaltitude, satellites, HDOP, magvariation);
     }
   }
 
