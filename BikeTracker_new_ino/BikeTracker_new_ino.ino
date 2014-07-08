@@ -31,7 +31,10 @@ float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 #define MILESINNAUTICALMILES 1.15077945
 #define GPSACCURACYFACTOR 7.8
 
+// GPS & SD
 #define mySerial Serial1
+#define TX 8 // not used
+#define RX 7 // not used
 #define SD_ChipSelect 10
 #define SD_MOSI 11
 #define SD_MISO 12
@@ -39,9 +42,12 @@ float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 #define ledPin 13
 
 #define OLED_DC     6
-#define OLED_CS     7
-#define OLED_RESET  8
+#define OLED_CS     4
+#define OLED_RESET  5
 
+#define BLE_REQ  3
+#define BLE_RDY  24
+#define BLE_RST  9
 
 char gpsNoDataString[] = "0/0/0,0:0:0.0,0,0,0,0,0,0,0,0,0,0,";
 
@@ -55,6 +61,8 @@ Adafruit_L3GD20_Unified       gyro = Adafruit_L3GD20_Unified(20);
 Adafruit_SSD1306              display = Adafruit_SSD1306(OLED_DC, OLED_RESET, OLED_CS);
 
 File logfile;
+
+char displayBuffer[20];
 
 void error(uint8_t errno)
 {
@@ -189,29 +197,148 @@ void setupSD()
   }
 }
 
+void printAt(int16_t x, int16_t y, uint8_t s, char *str)
+{
+  display.setTextSize(s);
+  display.setTextColor(WHITE);
+  display.setCursor(x, y);
+  display.println(str);
+  display.display();
+}
+
 void setupDisplay()
 {
   display.begin(SSD1306_SWITCHCAPVCC);
-
   display.clearDisplay();
-
-  display.print("ERCENK");
-  display.display(); // show splashscreen
-  delay(2000);
-  display.clearDisplay();   // clears the screen and buffer
-
+  printAt(0, 8, 2, "ERCENK");
 }
-
 void getSensorData(char *dofLogBuffer)
 {
-  sensors_event_t accel_event;
-  sensors_event_t mag_event;
-  sensors_event_t bmp_event;
-  sensors_event_t gyro_event;
-  sensors_vec_t   orientation;
 
-  float roll, pitch, heading, compHeading, temperature, altitude;
 
+
+  /*
+    display.clearDisplay();
+    sprintf(displayBuffer, "X:%f Y:%f Z:%f", accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z);
+    printAt(0, 0, 2, displayBuffer);
+
+    Serial.println(displayBuffer);
+    */
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  setupSD();
+  setupGps();
+  setupSensors();
+  setupDisplay();
+}
+
+float getDecimalDegree(float nmeaValue) {
+  float minutes;
+  float degrees;
+  float seconds;
+  float milliseconds;
+
+  degrees = trunc(nmeaValue / 100);
+  minutes = nmeaValue - (degrees * 100);
+  seconds = (minutes - trunc(minutes)) * 60;
+  milliseconds = (seconds - trunc(seconds)) * 1000;
+
+  minutes = trunc(minutes);
+  seconds = trunc(seconds);
+
+  return degrees + minutes / 60 + seconds / 3600 + milliseconds / 3600000;
+}
+
+uint32_t timer = millis();
+float previousLatitude = 0, previousLongitude = 0;
+
+char logBuffer[256];
+char gpsLogBuffer[128];
+char dofLogBuffer[128];
+size_t gpsBufferSize = 0;
+bool shouldLog = false;
+float distance;
+
+uint8_t gpsHour;
+uint8_t gpsMinute;
+uint8_t gpsSeconds;
+uint8_t gpsYear;
+uint8_t gpsMonth;
+uint8_t gpsDay;
+uint16_t gpsMilliseconds;
+float latitude;
+float longitude;
+float geoidheight;
+float altitude;
+float gpsSpeed;
+float angle;
+float magvariation;
+float HDOP;
+char lat;
+char lon;
+char gpsMag;
+boolean fix;
+uint8_t fixquality;
+uint8_t satellites;
+
+// DOF
+sensors_event_t accel_event;
+sensors_event_t mag_event;
+sensors_event_t bmp_event;
+sensors_event_t gyro_event;
+sensors_vec_t   orientation;
+
+float roll, pitch, heading, compHeading, temperature, altitude;
+
+void loop()
+{
+  char c = GPS.read();
+
+  // if a sentence is received, we can check the checksum, parse it...
+  if (GPS.newNMEAreceived()) {
+    // a tricky thing here is if we print the NMEA sentence, or data
+    // we end up not listening and catching other sentences!
+    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+    //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
+
+    if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+      return;  // we can fail to parse a sentence in which case we should just wait for another
+  }
+
+  // Copy GPS data first
+  gpsHour = GPS.hour;
+  gpsMinute = GPS.minute;
+  gpsSeconds = GPS.seconds;
+  gpsYear = GPS.year;
+  gpsMonth = GPS.month;
+  gpsDay = GPS.day;
+  gpsMilliseconds = GPS.milliseconds;
+  latitude = GPS.latitude;
+  latitude = getDecimalDegree(latitude);
+  longitude = GPS.longitude;
+  geoidheight = GPS.geoidheight;
+  altitude = GPS.altitude;
+  gpsSpeed = GPS.speed;
+  gpsSpeed *= MILESINNAUTICALMILES;
+  angle = GPS.angle;
+  magvariation = GPS.magvariation;
+  HDOP = GPS.HDOP;
+  lat = GPS.lat;
+  if (lat == 'S')
+    latitude *= -1;
+  lon = GPS.lon;
+  if (lon == 'W')
+    longitude *= -1;
+
+  gpsMag = GPS.mag;
+  fix = GPS.fix;
+  fixquality = GPS.fixquality;
+  satellites = GPS.satellites;
+  
+  // DOF
   accel.getEvent(&accel_event);
   if (dof.accelGetOrientation(&accel_event, &orientation))
   {
@@ -245,144 +372,9 @@ void getSensorData(char *dofLogBuffer)
 
   gyro.getEvent(&gyro_event);
   sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, altitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z, gyro_event.gyro.x, gyro_event.gyro.y, gyro_event.gyro.z);
-}
-
-void setup()
-{
-  Serial.begin(115200);
-  setupDisplay();
-  setupSD();
-
-  setupGps();
-  setupSensors();
-}
-
-float getDecimalDegree(float nmeaValue) {
-  float minutes;
-  float degrees;
-  float seconds;
-  float milliseconds;
-
-  degrees = trunc(nmeaValue / 100);
-  minutes = nmeaValue - (degrees * 100);
-  seconds = (minutes - trunc(minutes)) * 60;
-  milliseconds = (seconds - trunc(seconds)) * 1000;
-
-  minutes = trunc(minutes);
-  seconds = trunc(seconds);
-
-  return degrees + minutes / 60 + seconds / 3600 + milliseconds / 3600000;
-}
-
-void writeToDisplay(String str, uint8_t size)
-{
-  /*
-    display.setTextSize(size);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-
-  char charArray[MAXSTRINGLENGTH];
-  uint8_t len = str.length();
-
-  if (len > MAXSTRINGLENGTH)
-  {
-    len = MAXSTRINGLENGTH;
-  }
-
-  str.toCharArray(charArray, len + 1);
-
-  for(uint8_t i = 0; i < len; i++) {
-    display.write(charArray[i]);
-     }
-  display.display();
-  */
-}
-
-uint32_t timer = millis();
-float previousLatitude = 0, previousLongitude = 0;
-
-char logBuffer[256];
-char gpsLogBuffer[128];
-char dofLogBuffer[128];
-size_t gpsBufferSize = 0;
-bool shouldLog = false;
-float distance;
-
-uint8_t gpsHour;
-uint8_t gpsMinute;
-uint8_t gpsSeconds;
-uint8_t gpsYear;
-uint8_t gpsMonth;
-uint8_t gpsDay;
-uint16_t gpsMilliseconds;
-float latitude;
-float longitude;
-float geoidheight;
-float altitude;
-float speed;
-float angle;
-float magvariation;
-float HDOP;
-char lat;
-char lon;
-char gpsMag;
-boolean fix;
-uint8_t fixquality;
-uint8_t satellites;
-
-char displayBuffer[20];
-
-void loop()
-{
-
-
-  char c = GPS.read();
-  if (c)
-    Serial.print(c);
-
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) {
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-    //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
-
-    if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
-      return;  // we can fail to parse a sentence in which case we should just wait for another
-  }
-
-  // Copy GPS data first
-  gpsHour = GPS.hour;
-  gpsMinute = GPS.minute;
-  gpsSeconds = GPS.seconds;
-  gpsYear = GPS.year;
-  gpsMonth = GPS.month;
-  gpsDay = GPS.day;
-  gpsMilliseconds = GPS.milliseconds;
-  latitude = GPS.latitude;
-  latitude = getDecimalDegree(latitude);
-  longitude = GPS.longitude;
-  geoidheight = GPS.geoidheight;
-  altitude = GPS.altitude;
-  speed = GPS.speed;
-  speed *= MILESINNAUTICALMILES;
-  angle = GPS.angle;
-  magvariation = GPS.magvariation;
-  HDOP = GPS.HDOP;
-  lat = GPS.lat;
-  if (lat == 'S')
-    latitude *= -1;
-  lon = GPS.lon;
-  if (lon == 'W')
-    longitude *= -1;
-
-  gpsMag = GPS.mag;
-  fix = GPS.fix;
-  fixquality = GPS.fixquality;
-  satellites = GPS.satellites;
-
+  
   if (timer > millis())  timer = millis();
-  display.clearDisplay();
+
   if ((millis() - timer) > 2000)
   {
     // Are we moving?
@@ -396,17 +388,6 @@ void loop()
     distance = EARTHRADIUS * sqrt(pow(deltaLat, 2) + pow(cos(meanLatRadians) * deltaLong, 2));
     shouldLog = distance > GPSACCURACYFACTOR;
 
-    if (!shouldLog) {
-
-      display.setTextSize(1);
-      display.setTextColor(WHITE);
-      display.setCursor(0, 0);
-      sprintf(displayBuffer, "NOT MOVING");
-      display.print(displayBuffer);
-      Serial.println("Not moving");
-      display.display();
-    }
-
     timer = millis(); // reset the timer
   }
 
@@ -417,7 +398,6 @@ void loop()
       if (LOGSERIAL) {
         Serial.println("no fix");
       }
-      writeToDisplay("NO FIX", 1);
     }
     else
       return;
@@ -426,16 +406,13 @@ void loop()
     if (shouldLog) {
       sprintf(gpsLogBuffer, "%f, %d/%d/%d,%d:%d:%d.%d,%d,%d,%f,%f,%f,%f,%f,%d,%f,%f,",
               distance, gpsMonth, gpsDay, gpsYear, gpsHour, gpsMinute, gpsSeconds, gpsMilliseconds, fix, fixquality,
-              latitude, longitude, speed, angle, altitude, satellites, HDOP, magvariation);
-      sprintf(displayBuffer, "%0d:%0d:%0d", gpsHour, gpsMinute, gpsSeconds);
+              latitude, longitude, gpsSpeed, angle, altitude, satellites, HDOP, magvariation);
     }
   }
 
   if (shouldLog)
   {
     gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
-
-    getSensorData(dofLogBuffer);
     gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
 
     if (LOGSERIAL) {
@@ -453,6 +430,5 @@ void loop()
     }
     else logfile.write((uint8_t *)newLine, 1);
     logfile.flush();
-
   }
 }
