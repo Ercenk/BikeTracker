@@ -32,7 +32,7 @@ float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 #define GPSACCURACYFACTOR 7.8
 
 // GPS & SD
-#define mySerial Serial1
+#define gpsSerial Serial1
 #define TX 8 // not used
 #define RX 7 // not used
 #define SD_ChipSelect 10
@@ -51,13 +51,15 @@ float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 
 char gpsNoDataString[] = "0/0/0,0:0:0.0,0,0,0,0,0,0,0,0,0,0,";
 
-Adafruit_GPS GPS(&mySerial);
+Adafruit_GPS GPS(&gpsSerial);
 // 10DOF
+/*
 Adafruit_10DOF                dof   = Adafruit_10DOF();
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
 Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
 Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
 Adafruit_L3GD20_Unified       gyro = Adafruit_L3GD20_Unified(20);
+*/
 Adafruit_SSD1306              display = Adafruit_SSD1306(OLED_DC, OLED_RESET, OLED_CS);
 
 File logfile;
@@ -115,7 +117,7 @@ size_t trimwhitespace(char *out, size_t len, const char *str)
 void setupGps()
 {
   GPS.begin(9600);
-  mySerial.begin(9600);
+  gpsSerial.begin(9600);
 
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
@@ -123,9 +125,10 @@ void setupGps()
   GPS.sendCommand(PGCMD_ANTENNA);
 
   delay(1000);
-  mySerial.println(PMTK_Q_RELEASE);
+  gpsSerial.println(PMTK_Q_RELEASE);
 }
 
+/*
 void setupSensors()
 {
   gyro.enableAutoRange(true);
@@ -160,6 +163,7 @@ void setupSensors()
     while (1);
   }
 }
+*/
 
 void setupSD()
 {
@@ -231,7 +235,7 @@ void setup()
   Serial.begin(115200);
   setupSD();
   setupGps();
-  setupSensors();
+  //setupSensors();
   setupDisplay();
 }
 
@@ -337,6 +341,7 @@ void loop()
   fix = GPS.fix;
   fixquality = GPS.fixquality;
   satellites = GPS.satellites;
+  /*
   
   // DOF
   accel.getEvent(&accel_event);
@@ -372,6 +377,8 @@ void loop()
 
   gyro.getEvent(&gyro_event);
   sprintf(dofLogBuffer, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", roll, pitch, heading, compHeading, temperature, dofAltitude, accel_event.acceleration.x, accel_event.acceleration.y, accel_event.acceleration.z, gyro_event.gyro.x, gyro_event.gyro.y, gyro_event.gyro.z);
+  Serial.println(dofLogBuffer);
+  */
   
   if (timer > millis())  timer = millis();
 
