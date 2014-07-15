@@ -67,16 +67,31 @@ SdFat sd;
 // text file for logging
 ofstream logfile;
 
-// OLED
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-Adafruit_SSD1306              display = Adafruit_SSD1306(OLED_DC, OLED_RST, OLED_CS);
-
 // Serial print stream
 ArduinoOutStream serialLog(Serial);
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
+
+// OLED
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+Adafruit_SSD1306              display = Adafruit_SSD1306(OLED_DC, OLED_RST, OLED_CS);
+
+// 10DOF
+#include <Adafruit_Sensor.h>
+#include <Adafruit_L3GD20_U.h>
+#include <Adafruit_LSM303_U.h>
+#include <Adafruit_BMP085_U.h>
+#include <Adafruit_10DOF.h>
+
+Adafruit_10DOF                dof   = Adafruit_10DOF();
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
+Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
+Adafruit_L3GD20_Unified       gyro = Adafruit_L3GD20_Unified(20);
+
+
 
 
 uint32_t timer, logTimer;
@@ -91,6 +106,15 @@ double prevLat = 0, prevLng = 0, distance = 0, lat, lng;
 
 uint16_t year;
 byte month, day, hour, minutes, second, hundredths;
+
+// DOF
+sensors_event_t accel_event;
+sensors_event_t mag_event;
+sensors_event_t bmp_event;
+sensors_event_t gyro_event;
+sensors_vec_t   orientation;
+
+float roll, pitch, heading, compHeading, temperature, barometricPressure, bmpAltitude;
 
 char logBuffer[256];
 
@@ -147,6 +171,25 @@ void setup() {
   sprintf(displayBuffer, "%s, %s", filename, floatBuffer);
   printAt(0, 8, 1, displayBuffer);
 
+ if(!accel.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    while(1);
+  }
+  if(!mag.begin())
+  {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+  if(!bmp.begin())
+  {
+    /* There was a problem detecting the BMP180 ... check your connections */
+    Serial.println("Ooops, no BMP180 detected ... Check your wiring!");
+    while(1);
+  }
+  
   delay(1000);
 }
 
@@ -229,12 +272,45 @@ void loop() {
               setprecision(1) << avgSpeed  << ',' <<
               setprecision(2) << gps.course.deg() << ',' <<
               setprecision(0) << gps.altitude.feet() << ',' <<
-              gps.satellites.value() << endl;
+              gps.satellites.value();
 
     double sdSize = (double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024;
-    if (LOGSERIAL) {
-      serialLog << logBuffer;
-    }
+  }
+
+  // Get DOF data
+
+  // Get pitch roll, yaw
+  accel.getEvent(&accel_event);
+  mag.getEvent(&mag_event);
+
+  if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation))
+  {
+    roll = orientation.roll;
+    pitch = orientation.pitch;
+    heading = orientation.heading;
+  }
+
+  outBuffer << ',' <<
+            setprecision(2) << roll << ',' <<
+            pitch << ',' <<
+            heading;
+
+  bmp.getEvent(&bmp_event);
+  if (bmp_event.pressure)
+  {
+    bmp.getTemperature(&temperature);
+    bmpAltitude = bmp.pressureToAltitude(1021,
+                                         bmp_event.pressure,
+                                         temperature);
+  }
+
+  outBuffer << ',' <<
+            setprecision(2) << bmpAltitude << ',' <<
+            temperature << ',' <<
+            bmp_event.pressure << endl;
+
+  if (LOGSERIAL) {
+    serialLog << logBuffer;
   }
 
   if (timeToLog) {
