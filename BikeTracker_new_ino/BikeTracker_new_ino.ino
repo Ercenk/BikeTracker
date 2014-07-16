@@ -17,6 +17,8 @@
 #define OLED_CS     4
 #define OLED_RST  5
 
+#define ASK_TX_PIN 46
+
 #define SetupSerialLog() if (LOGSERIAL) Serial.begin(115200)
 
 // GPS
@@ -115,11 +117,23 @@ float roll, pitch, heading, compHeading, temperature, barometricPressure, bmpAlt
 float maxRoll, maxPitch, maxTemperature, maxBarometricPressure, maxBmpAltitude;
 float avgRoll, avgPitch, avgTemperature, avgBarometricPressure, avgBmpAltitude;
 
+float maxAccelX, maxAccelY, maxAccelZ, avgAccelX, avgAccelY, avgAccelZ;
+
+// Radio
+#include <RH_ASK.h>
+#include <SPI.h> // Not actually used but needed to compile
+
+RH_ASK driver(2000, ASK_TX_PIN, 44, 10, false);
+
+
 char filename[13];
 char logBuffer[256];
 char gpsLogBuffer[128];
 char dofLogBuffer[128];
 char displayBuffer[64];
+char txBuffer[64];
+
+uint8_t fileNumber;
 
 size_t gpsBufferSize = 0;
 
@@ -189,8 +203,10 @@ void setup() {
     filename[4] = '0' + (i % 100) / 10;
     filename[5] = '0' + (i % 100) % 10;
     if (!sd.exists(filename)) {
+      fileNumber = i;
       break;
     }
+    delay(500);
   }
 
   logfile.open(filename);
@@ -222,14 +238,14 @@ void setup() {
     while (1);
   }
 
+  if (!driver.init())
+    Serial.println("init failed");
+
   delay(1000);
 }
 
 
 void loop() {
-  // define the output buffer
-  obufstream outBuffer(logBuffer, sizeof(logBuffer));
-
   // Get pitch roll, heading from DOF
   accel.getEvent(&accel_event);
   mag.getEvent(&mag_event);
@@ -257,9 +273,12 @@ void loop() {
   getMaxAndAvg(temperature, &maxTemperature, &avgTemperature, dataCounter);
   getMaxAndAvg(bmp_event.pressure, &maxBarometricPressure, &avgBarometricPressure, dataCounter);
   getMaxAndAvg(bmpAltitude, &maxBmpAltitude, &avgBmpAltitude, dataCounter);
+  getMaxAndAvg(accel_event.acceleration.x, &maxAccelX, &avgAccelX, dataCounter);
+  getMaxAndAvg(accel_event.acceleration.y, &maxAccelY, &avgAccelY, dataCounter);
+  getMaxAndAvg(accel_event.acceleration.z, &maxAccelZ, &avgAccelZ, dataCounter);
 
   if (displayTimer > millis())  displayTimer = millis();
-  if (millis() - displayTimer > 500) {
+  if (millis() - displayTimer > 2000) {
     displayTimer = millis();
 
     char displayBuffer[64];
@@ -269,84 +288,97 @@ void loop() {
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(0, 0);
-    sprintf(displayBuffer, "FILE %s: %d %sGB", filename, logFileIsOpen, String((double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024, 2).c_str());
+    sprintf(displayBuffer, "FILE %d: %d %sGB", fileNumber, logFileIsOpen, String((double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024, 2).c_str());
     display.println(displayBuffer);
-    display.println("BATERRY");
-    sprintf(displayBuffer, "T%s %s %s B%s %s %s, ", String(temperature, 2).c_str(), String(maxTemperature, 2).c_str(),
-            String(avgTemperature, 2).c_str(), String(bmp_event.pressure, 2).c_str(), String(maxBarometricPressure, 2).c_str(), String(avgBarometricPressure, 2).c_str());
+    display.println("BATTERY");
+    sprintf(displayBuffer, "T%s  %s  %s", String(temperature, 2).c_str(), String(maxTemperature, 2).c_str(),
+            String(avgTemperature, 2).c_str());
+    display.println(displayBuffer);
+    sprintf(displayBuffer, "B%s %s %s", String(bmp_event.pressure, 2).c_str(), String(maxBarometricPressure, 2).c_str(), String(avgBarometricPressure, 2).c_str());
     display.println(displayBuffer);
     display.display();
   }
 
-if (timer > millis())  timer = millis();
-if (logTimer > millis())  logTimer = millis();
+  if (timer > millis())  timer = millis();
+  if (logTimer > millis())  logTimer = millis();
 
-// Get data only every other second
-if ((millis() - timer) <= 2000) {
-  return;
-}
-
-// Reset the timer
-timer = millis();
-
-if (millis() - logTimer > 60000) {
-  logTimer = millis();
-  timeToLog = true;
-}
-
-for (unsigned long start = millis(); millis() - start < 1000;)
-{
-  while (gpsSerial.available())
-  {
-    char c = gpsSerial.read();
-    gps.encode(c);
+  // Get data only every other second
+  if ((millis() - timer) <= 2000) {
+    return;
   }
-}
 
-if (gps.location.isUpdated() && gps.location.isValid())
-{
-  lat = gps.location.lat();
-  lng = gps.location.lng();
+  // Reset the timer
+  timer = millis();
 
-  if (prevLng == 0) {
+  if (millis() - logTimer > 10000) {
+    logTimer = millis();
+    timeToLog = true;
+  }
+
+//  for (unsigned long start = millis(); millis() - start < 1000;)
+//  {
+    while (gpsSerial.available())
+    {
+      char c = gpsSerial.read();
+      gps.encode(c);
+    }
+//  }
+
+  if (gps.location.isUpdated() && gps.location.isValid())
+  {
+    lat = gps.location.lat();
+    lng = gps.location.lng();
+
+    if (prevLng == 0) {
+      prevLng = lng;
+      prevLat = lat;
+    }
+    distance = gps.distanceBetween(lat, lng, prevLat, prevLng);
     prevLng = lng;
     prevLat = lat;
+
+    if (distance > GPSACCURACYFACTOR) {
+      moving = true;
+    }
+
+    currentSpeed = gps.speed.mph();
+    getMaxAndAvg(currentSpeed, &maxSpeed, &avgSpeed, dataCounter);
+
+    sprintf(gpsLogBuffer, "%d-%d-%dT%d:%d:%dZ,%s,%s,%s,%s,%s,%s,%s,%d,",
+            gps.date.year(), gps.date.month(), gps.date.day(), gps.time.hour(), gps.time.minute(), gps.time.second(), String(lat, 6).c_str(), String(lng, 6).c_str(), String(currentSpeed).c_str(),
+            String(maxSpeed).c_str(), String(avgSpeed).c_str(), String(gps.course.deg()).c_str(), String(gps.altitude.feet()).c_str(), gps.satellites.value());
   }
-  distance = gps.distanceBetween(lat, lng, prevLat, prevLng);
-  prevLng = lng;
-  prevLat = lat;
 
-  if (distance > GPSACCURACYFACTOR) {
-    moving = true;
+
+  sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+          String(roll).c_str(), String(maxRoll).c_str(), String(avgRoll).c_str(),
+          String(pitch).c_str(), String(maxPitch).c_str(), String(avgPitch).c_str(),
+          String(heading).c_str(), String(bmpAltitude).c_str(),
+          String(temperature).c_str(), String(maxTemperature).c_str(), String(avgTemperature).c_str(),
+          String(bmp_event.pressure).c_str(), String(maxBarometricPressure).c_str(), String(avgBarometricPressure).c_str(),
+          String(accel_event.acceleration.x).c_str(), String(maxAccelX).c_str(), String(avgAccelX).c_str(),
+          String(accel_event.acceleration.y).c_str(), String(maxAccelY).c_str(), String(avgAccelY).c_str(),
+          String(accel_event.acceleration.z).c_str(), String(maxAccelZ).c_str(), String(avgAccelZ).c_str());
+          
+  gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
+  gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
+/*
+  if (LOGSERIAL) {
+    serialLog << logBuffer << endl;
+  }
+*/
+
+  if (timeToLog) {
+    if (!moving) {
+      timeToLog = false;
+    }
+    moving = false;
+    dataCounter = 0;
   }
 
-  currentSpeed = gps.speed.mph();
-  getMaxAndAvg(currentSpeed, &maxSpeed, &avgSpeed, dataCounter);
-
-  sprintf(gpsLogBuffer, "%d-%d-%dT%d:%d:%dZ,%s,%s,%s,%s,%s,%s,%s,%d,",
-          gps.date.year(), gps.date.month(), gps.date.day(), gps.time.hour(), gps.time.minute(), gps.time.second(), String(lat, 6).c_str(), String(lng, 6).c_str(), String(currentSpeed).c_str(),
-          String(maxSpeed).c_str(), String(avgSpeed).c_str(), String(gps.course.deg()).c_str(), String(gps.altitude.feet()).c_str(), String(gps.satellites.value()).c_str());
-}
-
-sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s", String(roll).c_str(), String(pitch).c_str(), String(heading).c_str(), String(bmpAltitude).c_str(), String(temperature).c_str(),
-        String(bmp_event.pressure).c_str(), String(accel_event.acceleration.x).c_str(), String(accel_event.acceleration.y).c_str(), String(accel_event.acceleration.z).c_str());
-gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
-gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
-
-if (LOGSERIAL) {
-  serialLog << logBuffer << endl;
-}
-
-if (timeToLog) {
-  if (!moving) {
+  if (timeToLog) {
+     serialLog << logBuffer << endl;
+    logfile << logBuffer << endl << flush;
     timeToLog = false;
   }
-  moving = false;
-  dataCounter = 0;
-}
-
-if (timeToLog) {
-  logfile << logBuffer << endl << flush;
-  timeToLog = false;
-}
 }
