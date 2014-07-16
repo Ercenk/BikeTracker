@@ -91,10 +91,7 @@ Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
 Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
 Adafruit_L3GD20_Unified       gyro = Adafruit_L3GD20_Unified(20);
 
-
-
-
-uint32_t timer, logTimer;
+uint32_t timer, logTimer, displayTimer;
 bool timeToLog = false,
      sdError = true,
      logFileIsOpen = false,
@@ -115,17 +112,63 @@ sensors_event_t gyro_event;
 sensors_vec_t   orientation;
 
 float roll, pitch, heading, compHeading, temperature, barometricPressure, bmpAltitude;
+float maxRoll, maxPitch, maxTemperature, maxBarometricPressure, maxBmpAltitude;
+float avgRoll, avgPitch, avgTemperature, avgBarometricPressure, avgBmpAltitude;
 
+char filename[13];
 char logBuffer[256];
+char gpsLogBuffer[128];
+char dofLogBuffer[128];
+char displayBuffer[64];
 
-void printAt(int16_t x, int16_t y, uint8_t s, char *str)
-{
-  display.setTextSize(s);
-  display.setTextColor(WHITE);
-  display.setCursor(x, y);
-  display.println(str);
-  display.display();
+size_t gpsBufferSize = 0;
+
+void getMaxAndAvg(float val, float *maxVal, float *avgVal, uint32_t counter) {
+  if (val > *maxVal || counter == 1) {
+    *maxVal = val;
+  }
+  *avgVal = ((*avgVal * (counter - 1)) + val) / counter;
 }
+
+void getMaxAndAvg(double val, double *maxVal, double *avgVal, uint32_t counter) {
+  if (val > *maxVal || counter == 1) {
+    *maxVal = val;
+  }
+  *avgVal = ((*avgVal * (counter - 1)) + val) / counter;
+}
+
+size_t trimwhitespace(char *out, size_t len, const char *str)
+{
+  if (len == 0)
+    return 0;
+
+  const char *end;
+  size_t out_size;
+
+  // Trim leading space
+  while (isspace(*str)) str++;
+
+  if (*str == 0) // All spaces?
+  {
+    *out = 0;
+    return 1;
+  }
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while (end > str && isspace(*end)) end--;
+  end++;
+
+  // Set output size to minimum of trimmed string length and buffer size minus 1
+  out_size = (end - str) < len - 1 ? (end - str) : len - 1;
+
+  // Copy trimmed string and add null terminator
+  memcpy(out, str, out_size);
+  out[out_size] = 0;
+
+  return out_size;
+}
+
 
 void setup() {
   // Common setup
@@ -140,7 +183,6 @@ void setup() {
   // SD setup
   if (sd.begin(SD_ChipSelect, SPI_HALF_SPEED)) sdError = false;
 
-  char filename[13];
   strcpy(filename, "LOG000.TXT");
   for (uint8_t i = 0; i < 1000; i++) {
     filename[3] = '0' + i / 100;
@@ -160,126 +202,35 @@ void setup() {
 
   display.begin(SSD1306_SWITCHCAPVCC);
   display.clearDisplay();
-  //Size 2 shows 30 characters, the next ones are cut.
-  // Size 1 shows 147 chars
 
-  char displayBuffer[50];
-  char floatBuffer[6];
-
-  dtostrf((double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024,
-          5, 2, floatBuffer);
-  sprintf(displayBuffer, "%s, %s", filename, floatBuffer);
-  printAt(0, 8, 1, displayBuffer);
-
- if(!accel.begin())
+  if (!accel.begin())
   {
     /* There was a problem detecting the LSM303 ... check your connections */
     Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
-    while(1);
+    while (1);
   }
-  if(!mag.begin())
+  if (!mag.begin())
   {
     /* There was a problem detecting the LSM303 ... check your connections */
     Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-    while(1);
+    while (1);
   }
-  if(!bmp.begin())
+  if (!bmp.begin())
   {
     /* There was a problem detecting the BMP180 ... check your connections */
     Serial.println("Ooops, no BMP180 detected ... Check your wiring!");
-    while(1);
+    while (1);
   }
-  
+
   delay(1000);
 }
 
 
 void loop() {
-  if (timer > millis())  timer = millis();
-  if (logTimer > millis())  logTimer = millis();
-
-  // Get data only every other second
-  if ((millis() - timer) <= 2000) {
-    return;
-  }
-
-  // Reset the timer
-  timer = millis();
-
-  if (millis() - logTimer > 60000) {
-    timeToLog = true;
-  }
-
   // define the output buffer
   obufstream outBuffer(logBuffer, sizeof(logBuffer));
 
-  for (unsigned long start = millis(); millis() - start < 1000;)
-  {
-    while (gpsSerial.available())
-    {
-      char c = gpsSerial.read();
-      gps.encode(c);
-    }
-  }
-
-  if (gps.location.isUpdated() && gps.location.isValid())
-  {
-    lat = gps.location.lat();
-    lng = gps.location.lng();
-
-    if (prevLng == 0) {
-      prevLng = lng;
-      prevLat = lat;
-    }
-    distance = gps.distanceBetween(lat, lng, prevLat, prevLng);
-    if (distance > GPSACCURACYFACTOR) {
-      moving = true;
-    }
-
-    if (timeToLog) {
-      if (!moving) {
-        timeToLog = false;
-      }
-      moving = false;
-    }
-
-    prevLng = lng;
-    prevLat = lat;
-
-    dataCounter++;
-    currentSpeed = gps.speed.mph();
-    if (currentSpeed > maxSpeed) {
-      maxSpeed = currentSpeed;
-    }
-    avgSpeed = ((avgSpeed * (dataCounter - 1)) + currentSpeed) / dataCounter;
-
-    char oldFill = outBuffer.fill('0');
-    outBuffer <<
-              setw(2) << int(gps.date.year()) << '-' <<
-              setw(2) << int(gps.date.month()) << '-' <<
-              setw(2) << int(gps.date.day()) << 'T' <<
-              setw(2) << int(gps.time.hour()) << ':' <<
-              setw(2) << int(gps.time.minute()) << ':' <<
-              setw(2) << int(gps.time.second()) << 'Z' ;
-    outBuffer.fill(oldFill);
-
-    outBuffer << ',' <<
-              //dateTimeBuffer << ',' <<
-              setprecision(10) << lat << ',' <<
-              setprecision(10) << lng << ',' <<
-              setprecision(1) << currentSpeed  << ',' <<
-              setprecision(1) << maxSpeed  << ',' <<
-              setprecision(1) << avgSpeed  << ',' <<
-              setprecision(2) << gps.course.deg() << ',' <<
-              setprecision(0) << gps.altitude.feet() << ',' <<
-              gps.satellites.value();
-
-    double sdSize = (double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024;
-  }
-
-  // Get DOF data
-
-  // Get pitch roll, yaw
+  // Get pitch roll, heading from DOF
   accel.getEvent(&accel_event);
   mag.getEvent(&mag_event);
 
@@ -290,11 +241,6 @@ void loop() {
     heading = orientation.heading;
   }
 
-  outBuffer << ',' <<
-            setprecision(2) << roll << ',' <<
-            pitch << ',' <<
-            heading;
-
   bmp.getEvent(&bmp_event);
   if (bmp_event.pressure)
   {
@@ -304,16 +250,103 @@ void loop() {
                                          temperature);
   }
 
-  outBuffer << ',' <<
-            setprecision(2) << bmpAltitude << ',' <<
-            temperature << ',' <<
-            bmp_event.pressure << endl;
+  dataCounter++;
 
-  if (LOGSERIAL) {
-    serialLog << logBuffer;
+  getMaxAndAvg(roll, &maxRoll, &avgRoll, dataCounter);
+  getMaxAndAvg(pitch, &maxPitch, &avgPitch, dataCounter);
+  getMaxAndAvg(temperature, &maxTemperature, &avgTemperature, dataCounter);
+  getMaxAndAvg(bmp_event.pressure, &maxBarometricPressure, &avgBarometricPressure, dataCounter);
+  getMaxAndAvg(bmpAltitude, &maxBmpAltitude, &avgBmpAltitude, dataCounter);
+
+  if (displayTimer > millis())  displayTimer = millis();
+  if (millis() - displayTimer > 500) {
+    displayTimer = millis();
+
+    char displayBuffer[64];
+    obufstream dispBuffer(displayBuffer, sizeof(displayBuffer));
+
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    sprintf(displayBuffer, "FILE %s: %d %sGB", filename, logFileIsOpen, String((double) (sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster() / 2) / 1024 / 1024, 2).c_str());
+    display.println(displayBuffer);
+    display.println("BATERRY");
+    sprintf(displayBuffer, "T%s %s %s B%s %s %s, ", String(temperature, 2).c_str(), String(maxTemperature, 2).c_str(),
+            String(avgTemperature, 2).c_str(), String(bmp_event.pressure, 2).c_str(), String(maxBarometricPressure, 2).c_str(), String(avgBarometricPressure, 2).c_str());
+    display.println(displayBuffer);
+    display.display();
   }
 
-  if (timeToLog) {
-    logfile << logBuffer << flush;
+if (timer > millis())  timer = millis();
+if (logTimer > millis())  logTimer = millis();
+
+// Get data only every other second
+if ((millis() - timer) <= 2000) {
+  return;
+}
+
+// Reset the timer
+timer = millis();
+
+if (millis() - logTimer > 60000) {
+  logTimer = millis();
+  timeToLog = true;
+}
+
+for (unsigned long start = millis(); millis() - start < 1000;)
+{
+  while (gpsSerial.available())
+  {
+    char c = gpsSerial.read();
+    gps.encode(c);
   }
+}
+
+if (gps.location.isUpdated() && gps.location.isValid())
+{
+  lat = gps.location.lat();
+  lng = gps.location.lng();
+
+  if (prevLng == 0) {
+    prevLng = lng;
+    prevLat = lat;
+  }
+  distance = gps.distanceBetween(lat, lng, prevLat, prevLng);
+  prevLng = lng;
+  prevLat = lat;
+
+  if (distance > GPSACCURACYFACTOR) {
+    moving = true;
+  }
+
+  currentSpeed = gps.speed.mph();
+  getMaxAndAvg(currentSpeed, &maxSpeed, &avgSpeed, dataCounter);
+
+  sprintf(gpsLogBuffer, "%d-%d-%dT%d:%d:%dZ,%s,%s,%s,%s,%s,%s,%s,%d,",
+          gps.date.year(), gps.date.month(), gps.date.day(), gps.time.hour(), gps.time.minute(), gps.time.second(), String(lat, 6).c_str(), String(lng, 6).c_str(), String(currentSpeed).c_str(),
+          String(maxSpeed).c_str(), String(avgSpeed).c_str(), String(gps.course.deg()).c_str(), String(gps.altitude.feet()).c_str(), String(gps.satellites.value()).c_str());
+}
+
+sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s", String(roll).c_str(), String(pitch).c_str(), String(heading).c_str(), String(bmpAltitude).c_str(), String(temperature).c_str(),
+        String(bmp_event.pressure).c_str(), String(accel_event.acceleration.x).c_str(), String(accel_event.acceleration.y).c_str(), String(accel_event.acceleration.z).c_str());
+gpsBufferSize = trimwhitespace(logBuffer, 128, gpsLogBuffer);
+gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 128, dofLogBuffer);
+
+if (LOGSERIAL) {
+  serialLog << logBuffer << endl;
+}
+
+if (timeToLog) {
+  if (!moving) {
+    timeToLog = false;
+  }
+  moving = false;
+  dataCounter = 0;
+}
+
+if (timeToLog) {
+  logfile << logBuffer << endl << flush;
+  timeToLog = false;
+}
 }
