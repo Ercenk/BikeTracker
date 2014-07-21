@@ -1,7 +1,7 @@
 // Common
 #include <Wire.h>
 #include <SPI.h>
-#define LOGSERIAL true
+#define LOGSERIAL false
 
 // PINS
 #define DO_NOT_USE_TX 7 // GPS TX
@@ -231,6 +231,7 @@ void displayStatus(char *status)
 {
   char displayBuffer[64];
 
+  uint8_t stopWatch = millis();
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(WHITE);
@@ -382,44 +383,21 @@ void loop() {
             String(maxSpeed).c_str(), String(avgSpeed).c_str(), String(gps.course.deg()).c_str(), String(gps.altitude.feet()).c_str(), gps.satellites.value());
   }
 
-  if (displayTimer > millis())  displayTimer = millis();
-  if (millis() - displayTimer > 60000) {
-    displayTimer = millis();
-    char buf[50];
-    if (gpsData) {
+  sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+          String(roll).c_str(), String(maxRoll).c_str(), String(avgRoll).c_str(),
+          String(pitch).c_str(), String(maxPitch).c_str(), String(avgPitch).c_str(),
+          String(heading).c_str(), String(bmpAltitude).c_str(),
+          String(temperature).c_str(), String(maxTemperature).c_str(), String(avgTemperature).c_str(),
+          String(bmp_event.pressure).c_str(), String(maxBarometricPressure).c_str(), String(avgBarometricPressure).c_str(),
+          String(accel_event.acceleration.x).c_str(), String(maxAccelX).c_str(), String(avgAccelX).c_str(),
+          String(accel_event.acceleration.y).c_str(), String(maxAccelY).c_str(), String(avgAccelY).c_str(),
+          String(accel_event.acceleration.z).c_str(), String(maxAccelZ).c_str(), String(avgAccelZ).c_str());
 
-      sprintf(buf, "02d:%02d:%02dZ - %d", gps.time.hour(), gps.time.minute(), gps.time.second(), recNumber);
-      displayStatus(buf);
-    }
-    else
-    {
-      sprintf(buf, "NO GPS - %d", gps.time.hour(), gps.time.minute(), gps.time.second(), recNumber);
-      displayStatus(buf);
-    }
-  }
+  gpsBufferSize = trimwhitespace(logBuffer, 100, gpsLogBuffer);
+  gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 150, dofLogBuffer);
 
-    sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
-            String(roll).c_str(), String(maxRoll).c_str(), String(avgRoll).c_str(),
-            String(pitch).c_str(), String(maxPitch).c_str(), String(avgPitch).c_str(),
-            String(heading).c_str(), String(bmpAltitude).c_str(),
-            String(temperature).c_str(), String(maxTemperature).c_str(), String(avgTemperature).c_str(),
-            String(bmp_event.pressure).c_str(), String(maxBarometricPressure).c_str(), String(avgBarometricPressure).c_str(),
-            String(accel_event.acceleration.x).c_str(), String(maxAccelX).c_str(), String(avgAccelX).c_str(),
-            String(accel_event.acceleration.y).c_str(), String(maxAccelY).c_str(), String(avgAccelY).c_str(),
-            String(accel_event.acceleration.z).c_str(), String(maxAccelZ).c_str(), String(avgAccelZ).c_str());
-
-    gpsBufferSize = trimwhitespace(logBuffer, 100, gpsLogBuffer);
-    gpsBufferSize = trimwhitespace(logBuffer + gpsBufferSize, 150, dofLogBuffer);
-
-    if (timeToLog) {
-      if (!moving) {
-        timeToLog = false;
-      }
-      moving = false;
-    }
-
-    if (timeToLog) {
-
+  if (timeToLog) {
+    if (moving) {
       radioSend(recNumber, 'C', gps.course.deg());
       radioSend(recNumber, 'A', gps.altitude.feet());
       radioSend(recNumber, 'T', temperature);
@@ -430,12 +408,30 @@ void loop() {
       recNumber++;
 
       if (LOGSERIAL) {
-        serialLog << logBuffer << endl;
+        serialLog << logBuffer << " : " << recNumber - 1 << endl;
       }
       logfile << logBuffer << endl << flush;
       timeToLog = false;
       dataCounter = 0;
       return;
     }
-    dataCounter++;
+    moving = false;
   }
+
+  if (displayTimer > millis())  displayTimer = millis();
+  if (millis() - displayTimer > 600000) {
+    displayTimer = millis();
+    char buf[50];
+    if (gpsData) {
+
+      sprintf(buf, "%02d:%02d:%02d %d", gps.time.hour(), gps.time.minute(), gps.time.second(), recNumber);
+      displayStatus(buf);
+    }
+    else
+    {
+      sprintf(buf, "NO GPS %d", gps.time.hour(), gps.time.minute(), gps.time.second(), recNumber);
+      displayStatus(buf);
+    }
+  }
+  dataCounter++;
+}
