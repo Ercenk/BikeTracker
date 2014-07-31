@@ -1,7 +1,7 @@
 // Common
 #include <Wire.h>
 #include <SPI.h>
-#define LOGSERIAL false
+#define LOGSERIAL true
 
 // PINS
 #define DO_NOT_USE_TX 7 // GPS TX
@@ -371,8 +371,8 @@ void loop() {
           if (distance > (GPSACCURACYFACTOR * 2) && currentSpeed > 3) {
             moving = true;
           }
-        }
-    */
+        }      
+        */
     if (currentSpeed > 3) {
       moving = true;
     }
@@ -410,7 +410,7 @@ void loop() {
       if (LOGSERIAL) {
         serialLog << logBuffer << " : " << recNumber - 1 << endl;
       }
-      logfile << logBuffer << endl << flush;
+      logfile << logBuffer << '\r' << endl << flush;
       timeToLog = false;
       dataCounter = 0;
       return;
