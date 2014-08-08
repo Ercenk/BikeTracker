@@ -1,7 +1,7 @@
 // Common
 #include <Wire.h>
 #include <SPI.h>
-#define LOGSERIAL true
+#define LOGSERIAL false
 
 // PINS
 #define DO_NOT_USE_TX 7 // GPS TX
@@ -382,6 +382,10 @@ void loop() {
             String(lat, 10).c_str(), String(lng, 10).c_str(), String(currentSpeed).c_str(),
             String(maxSpeed).c_str(), String(avgSpeed).c_str(), String(gps.course.deg()).c_str(), String(gps.altitude.feet()).c_str(), gps.satellites.value());
   }
+  else
+  {
+    timeToLog = false;
+  }
 
   sprintf(dofLogBuffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
           String(roll).c_str(), String(maxRoll).c_str(), String(avgRoll).c_str(),
@@ -410,7 +414,7 @@ void loop() {
       if (LOGSERIAL) {
         serialLog << logBuffer << " : " << recNumber - 1 << endl;
       }
-      logfile << logBuffer << '\r' << endl << flush;
+      logfile << logBuffer << endl << flush;
       timeToLog = false;
       dataCounter = 0;
       return;
