@@ -1,0 +1,8 @@
+﻿
+<div data-ng-controller="loginCtrl as vm" class="container right">
+        <button type="button" class="btn btn-primary" data-ng-click="vm.login()" data-ng-hide="vm.isAuthenticated" data-ng-show="!vm.isAuthenticated">Facebook Login</button>
+        <button type="button" class="btn btn-primary" data-ng-click="vm.logout()" data-ng-show="vm.isAuthenticated" data-ng-hide="!vm.isAuthenticated">Facebook Logout</button>
+    <button type="button" class="btn btn-warning" data-ng-click="vm.unsubscribe()" data-ng-show="vm.isAuthenticated" data-ng-hide="!vm.isAuthenticated">Unsubscribe</button>
+    <a href="#/upload" data-ng-show="vm.isAdmin" data-ng-hide="!vm.isAdmin"  class="btn btn-success">Upload </a>
+    <a href="#/users" data-ng-show="vm.isAdmin" data-ng-hide="!vm.isAdmin" class="btn btn-success">Users </a>
+</div>

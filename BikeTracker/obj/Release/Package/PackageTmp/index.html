@@ -1,0 +1,168 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* This helps the ng-show/ng-hide animations start at the right place. */
+        /* Since Angular has this but needs to load, this gives us the class early. */
+        .ng-hide {
+            display: none !important;
+        }
+    </style>
+    <title data-ng-bind="title">Bike Tracker</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+
+    <script>
+        // Must be first. IE10 mobile viewport fix
+        if ("-ms-user-select" in document.documentElement.style && navigator.userAgent.match(/IEMobile\/10\.0/)) {
+            var msViewportStyle = document.createElement("style");
+            var mq = "@-ms-viewport{width:auto!important}";
+            msViewportStyle.appendChild(document.createTextNode(mq));
+            document.getElementsByTagName("head")[0].appendChild(msViewportStyle);
+        }
+    </script>
+
+
+    <link href="content/ie10mobile.css" rel="stylesheet" />
+    <!--<link href="content/bootstrap.min.css" rel="stylesheet" />-->
+    <link href="content/bootstrap.css" rel="stylesheet" />
+    <link href="content/font-awesome.min.css" rel="stylesheet" />
+    <link href="content/toastr.css" rel="stylesheet" />
+    <!--<link href="content/customtheme.css" rel="stylesheet">-->
+    <link href="content/styles.css" rel="stylesheet" />
+    <link href="Content/ng-grid.css" rel="stylesheet"/>
+
+    <script type="text/javascript">
+        window.appInsights = { queue: [], applicationInsightsId: null, accountId: null, appUserId: null, configUrl: null, start: function (n) { function u(n) { t[n] = function () { var i = arguments; t.queue.push(function () { t[n].apply(t, i) }) } } function f(n, t) { if (n) { var u = r.createElement(i); u.type = "text/javascript"; u.src = n; u.async = !0; u.onload = t; u.onerror = t; r.getElementsByTagName(i)[0].parentNode.appendChild(u) } else t() } var r = document, t = this, i; t.applicationInsightsId = n; u("logEvent"); u("logPageView"); i = "script"; f(t.configUrl, function () { f("//az416426.vo.msecnd.net/scripts/v/ai.0.7.js") }); t.start = function () { } } };
+
+        appInsights.start("9a2d9ad9-45f0-457a-a443-996a75f70e4c");
+        appInsights.logPageView();
+    </script>
+    
+    <script>
+        (function (i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date(); a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+        ga('create', 'UA-54023801-1', 'auto');
+        ga('send', 'pageview');
+
+    </script>
+
+</head>
+<body>
+    <div>
+        <div data-ng-include="'/app/layout/shell.html'"></div>
+        <div id="splash-page" data-ng-show="false">
+            <div class="page-splash">
+                <div class="page-splash-message">
+                    Bike Tracker
+                </div>
+                <div class="progress progress-striped active page-progress-bar">
+                    <div class="bar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--<div id="fb-root"></div>-->
+
+    <span data-cc-scroll-to-top></span>
+
+    <!-- Vendor Scripts -->
+    <script src="Scripts/FileUpload/angular-file-upload-shim.js"></script>
+    <script src="scripts/jquery-2.1.1.js"></script>
+    <script src="Scripts/jquery-ui-1.10.4.js"></script>
+    <script src="//connect.facebook.net/en_US/sdk.js"></script>
+    <script src="scripts/angular.js"></script>
+    <script src="scripts/angular-resource.js"></script>
+    <script src="scripts/angular-animate.js"></script>
+    <script src="scripts/angular-route.js"></script>
+    <script src="scripts/angular-sanitize.js"></script>
+    <script src="scripts/bootstrap.js"></script>
+    <script src="scripts/toastr.js"></script>
+    <script src="scripts/moment.js"></script>
+    <script src="Scripts/moment-with-langs.min.js"></script>
+    <!--<script src="Scripts/moment-timezone.min.js"></script>-->
+    <script src="Scripts/moment-with-locales.min.js"></script>
+    <script src="Scripts/moment-timezone-with-data.min.js"></script>
+    <script src="scripts/angular-ui/ui-bootstrap.js"></script>
+    <script src="scripts/angular-ui/ui-bootstrap-tpls.js"></script>
+    <script src="scripts/angular-ui/ui-utils.js"></script>    
+    <script src="Scripts/ng-grid.js"></script>
+    <script src="Scripts/ng-google-chart.js"></script>
+    
+   
+    <script src="Scripts/FileUpload/angular-file-upload.js"></script> 
+    
+
+    <script src="scripts/spin.js"></script>
+    <script src="//maps.googleapis.com/maps/api/js?key=AIzaSyCclZT9g1Xv6V_9E1yWRBBXB_1Ui_zd8Cg&v=3.exp"> </script>
+    <script src="scripts/angular-ui/ui-map.js"></script>
+    <script src="Scripts/lodash.underscore.js"></script>
+    <script src="Scripts/angular-google-maps.js"></script>
+    <!--<script src="app/maps/mappolyline.js"></script>-->
+    <!--src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCclZT9g1Xv6V_9E1yWRBBXB_1Ui_zd8Cg&v=3.exp&sensor=false&callback=initialize"-->
+
+
+    <!-- Bootstrapping -->
+    <script src="app/services/facebookSvc.js"></script>
+    <script src="app/app.js"></script>
+    <script src="app/config.js"></script>
+    <script src="app/config.exceptionHandler.js"></script>
+    <script src="app/config.route.js"></script>
+
+    <!-- common Modules -->
+    <script src="app/common/common.js"></script>
+    <script src="app/common/logger.js"></script>
+    <script src="app/common/spinner.js"></script>
+
+    <!-- common.bootstrap Modules -->
+    <script src="app/common/bootstrap/bootstrap.dialog.js"></script>
+
+    <!-- app -->
+    <script src="app/admin/admin.js"></script>
+    <script src="app/fileUpload/fileupload.js"></script>
+    <script src="app/dashboard/dashboard.js"></script>
+    <script src="app/layout/sidebar.js"></script>
+    <script src="app/login/login.js"></script>
+    <script src="app/layout/shell.js"></script>
+    <script src="app/segment/segment.js"></script>
+    <script src="app/users/users.js"></script>
+
+    <!-- app Services -->
+    <script src="app/services/bikeTrackerServer.js"></script>
+    <script src="/app/services/azureTableService.js"></script>
+    <script src="app/services/directives.js"></script>
+    <script src="app/services/googleServices.js"></script>
+    
+    <script>
+        function initialize() {
+            if (typeof jQuery == 'undefined') {
+                console.log("not loaded");
+            } else {
+                console.log("loaded");
+            }
+
+            angular.bootstrap(document, ['app']);
+        }
+
+        google.maps.event.addDomListener(window, 'load', initialize);
+
+        //$window.fbAsyncInit = function () {
+            FB.init({
+                appId: '773946142637304',
+                channelUrl: 'app/channel.html',
+                status: false,
+                cookie: true,
+                xfbml: true,
+                version: 'v2.0'
+            });
+        //};
+    </script>
+</body>
+</html>

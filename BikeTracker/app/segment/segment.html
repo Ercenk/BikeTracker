@@ -1,0 +1,134 @@
+﻿<section id="dashboard-view" class="mainbar" data-ng-controller="segmentCtrl as vm">
+    <!--<ul >
+            <li data-ng-repeat="point in vm.map.points">
+                {{point.latitude}},{{point.longitude}}
+            </li>
+        </ul>-->
+
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8" ng-show="vm.loading"><span class="alert alert-info center-block"><span class="fa fa-spinner fa-spin"></span> <span class="text-center">Loading segment route with {{vm.numberOfPoints}} points.</span></span></div>
+        <div class="col-sm-2"></div>
+    </div>
+
+
+    <!--<div class="row">
+        <h4>Segment between {{vm.segmentStartLoc}} and {{vm.segmentEndLoc}}, started {{vm.segmentLocalTime}}</h4>
+        <h4>Duration: </h4>
+    </div>-->
+    <tabset>
+
+        <tab heading="Segment Map">
+            <div class="row">
+                <div class="col-sm-10">
+                    <!--<div ui-map="myMap" ui-options="vm.mapOptions" class="map-canvas"
+                             ui-event="{'map-click': 'addMarker($event, $params)', 'map-zoom_changed': 'setZoomMessage(myMap.getZoom())' }"></div>-->
+                    <google-map center="vm.map.center" zoom="vm.map.zoom" draggable="true" pan="true" events="vm.map.events" options="'options'">
+                        <!--<polylines models="vm.map.points" path="'path'" stroke="'stroke'" editable="false" draggable="false" geodesic="true" stroke="vm.map.lineStyle" fit="true"></polylines>-->
+                        <!--<polyline ng-repeat="p in vm.map.points" path="p.path" stroke="'stroke'" editable="false" draggable="false" geodesic="true" stroke="vm.map.lineStyle" fit="true"></polylineng-repeat>-->
+                        <!--<polyline-custom polylines="vm.map.points.path" />-->
+                        <markers models="vm.map.travelledPoints" coords="'self'" fit="true" icon="'icon'"></markers>
+                    </google-map>
+                </div>
+                <div class="col-sm-2">
+                    <table>
+                        <thead>Speed Range</thead>
+                        <tbody>
+                            <tr ng-repeat="range in vm.speedRange">
+                                <td><img ng-src="{{range.icon}}" /></td>
+                                <td>{{range.range}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </tab>
+        <tab heading="Segment Charts" select="vm.chartTabSelect()">
+            
+            <div class="row">
+                <div class="col-sm-2"></div>
+                <div class="col-sm-8" ng-show="vm.loading"><span class="alert alert-info center-block"><span class="text-center">Caution. This operation downloads <b> a lot of </b> data and may take some time.</span></span></div>
+                <div class="col-sm-2"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.averageSpeedChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.altitudeChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.rollChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.temperatureChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-4"></div>
+                <div class="col-sm-4"><p>Temperature data is very skewed because the sensor is in a closed box, with a transparent cover. Basically a greenhouse.</p></div>
+                <div class="col-sm-4"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.pressureChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.xAccelerationChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.yAccelerationChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div google-chart chart="vm.zAccelerationChart"></div>
+
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+        </tab>
+    </tabset>
+
+</section>

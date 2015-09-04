@@ -1,0 +1,44 @@
+﻿<section id="dashboard-view" class="mainbar" data-ng-controller="dashboard as vm">
+    <div class="row">
+        <div class="col-md-2"></div>
+        <div class="col-md-8">
+            <h4>Trip segments for each time the tracker is on. Hover over the charts to see the segment details.</h4>
+        </div>
+        <div class="col-md-2"></div>
+    </div>
+    <div class="row">
+        <div class="col-xs-1"></div>
+        <div class="col-xs-10">
+            <div class="gridStyle" data-ng-grid="vm.gridOptions"></div>
+
+
+        </div>
+        <div class="col-xs-1"></div>
+    </div>
+
+    <div class="row" ng-show="vm.selected !== ''">
+        <div class="col-xs-1"></div>
+        <div class="col-xs-10">
+            <div google-chart chart="vm.averageSpeedChart"></div>
+
+        </div>
+        <div class="col-xs-1"></div>
+    </div>
+    
+    <div class="row" ng-show="vm.selected !== ''">
+        <div class="col-xs-1"></div>
+        <div class="col-xs-10">
+            <div google-chart chart="vm.averageAltitudeChart"></div>
+
+        </div>
+        <div class="col-xs-1"></div>
+    </div>
+    <div class="row" ng-show="vm.selected !== ''">
+        <div class="col-xs-1"></div>
+        <div class="col-xs-10">
+            <div google-chart chart="vm.averageLatitudeChart"></div>
+
+        </div>
+        <div class="col-xs-1"></div>
+    </div>
+</section>
