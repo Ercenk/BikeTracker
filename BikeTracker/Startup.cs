@@ -78,7 +78,7 @@ namespace BikeTracker
                         AllowInsecureHttp = true
                     });
 
-            app.UseFacebookAuthentication(appId: "773946142637304", appSecret: "e02d6d7a9319a707c9b2ce7fb121f955");
+            app.UseFacebookAuthentication(appId: "893597997429653", appSecret: "82eadf6a11fc3ceb9a4d73733bf06a17");
 
 
             #endregion

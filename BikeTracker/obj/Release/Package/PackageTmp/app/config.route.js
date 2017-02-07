@@ -50,6 +50,14 @@
 
             }
             , {
+                url: '/story',
+                config: {
+                    title: 'Story',
+                    templateUrl: 'app/story/story.html'
+                },
+
+            }
+            , {
                 //url: '/segment/start/:startTime/end/:endTime/startloc/:startLoc/endloc/:endLoc/segmentTime/:segmentTime',
                 url: '/segment/start/:startTime/end/:endTime',
                 config: {

@@ -1,0 +1,73 @@
+<section id="dashboard-view" class="mainbar" data-ng-controller="storyController as vm">
+    <div class="row">
+        <div class="col-xs-1"></div>
+        <div class="col-xs-10">
+            I have a long standing passion for combining data collected from around us, then anaylzing and displaying using software. I have started this project to learn a few technologies.
+
+            <ul>
+                <li>
+                    Hardware
+                    <ul>
+                        <li>
+                            Microcontroller (an Arduino Mega)
+                        </li>
+                        <li>GPS receiver</li>
+                        <li>Gyroscope</li>
+                        <li>Accelerometer</li>
+                        <li>Temperature sensor</li>
+                        <li>Barometer</li>
+                        <li>Compass</li>
+                        <li>R/F transciever</li>
+                        <li>MicroSD card reader</li>
+                    </ul>
+                </li>
+                <li>Software
+                    <ul>
+                        <li>
+                            Hosted on Microsoft Azure Websites
+                        </li>
+                        <li>
+                            OWIN
+                        </li>
+                        <li>
+                            Angular
+                        </li>
+                        <li>
+                            Various APIs on the web (time and location API from Google)
+                        </li>
+                        <li>Google Maps</li>
+                        <li>Facebook applications and authentication</li>
+                    </ul></li>
+            </ul>
+            <p>
+                Here is how it works:
+                <ul>
+                    <li>A new file is created every time the tracker is on.</li>
+                    <li>The data collected on the sensors and GPS are sampled every two seconds and written to the MicroSD card.</li>
+                    <li>Once done collecting the data during the day, I pop out the MicroSD card and upload using the website</li>
+                    <li>Backend code authenticates me as the administrator user</li>
+                    <li>Backend code divides the data points into segments. It is a new segment if there are more than 30 minutes between two data points.</li>
+                    <li>Each segment's start and end point is retrieved as the closest cities using a geocoder API, plus the local time zone</li>
+                    <li>Data points and segments written to the Azure table store</li>
+                </ul>
+
+            </p>
+        </div>
+
+        <div class="col-xs-1"></div>
+    </div>
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <p>Prototyping <img class="media-object" src="/Content/images/prototype.jpg"/>
+            </p>
+            <p>Testing <img class="media-object" src="/Content/images/testing.jpg"/>
+            </p>
+            <p>Mounted to the tail light <img class="media-object" src="/Content/images/mounted.jpg"/>
+            </p>
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+    
+</section>
+

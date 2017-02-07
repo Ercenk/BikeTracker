@@ -4,12 +4,16 @@
         <div class="row">
             <div class="col-md-10">
                 <div class="media">
-                    <a class="pull-left" href="/"><img class="media-object" src="/Content/images/Bike.jpg" /></a>
-                    <h1><a href="/">Ercenk's Bike Tracker</a></h1>
+                    <a class="pull-left" href="/"><img class="media-object" src="/Content/images/Bike.jpg"/></a>
+                    <a class="pull-right" href="/"><img class="media-object" src="/Content/images/mounted_small.jpg" /></a>
+                    <h1><a href="/">Ercenk's Bike Tracker</a>
+                    </h1>
+                    
                     <h3 ng-show="vm.firstName">Hello {{vm.firstName}},</h3>
                     <h3 ng-show="!vm.firstName">Howdy stranger! Please feel free to login with Facebook so I know who is visiting here.</h3>
                 </div>
-                <small>This is my personal fun project, and ever changing. I am updating it as I learn new stuff.</small>
+                <small>I had built this just before my Northern BC motorcycle trip to start leaning a few technologies. 
+                    </small>
             </div>
             <div class="col-md-2">
                 <div data-ng-include="'/app/login/login.html'"></div>
